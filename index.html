@@ -244,7 +244,7 @@
     }
 
     async function fetchHistory() {
-      const res = await fetch("https://trip-planner-backend-yuyb.onrender.com/api/itinerary/ab", {
+      const res = await fetch("https://trip-planner-backend-yuyb.onrender.com/api/itinerary", {
         headers: { Authorization: `Bearer ${token}` },
       });
 
