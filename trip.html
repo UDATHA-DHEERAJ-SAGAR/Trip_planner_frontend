@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Smart Trip Planner</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Inter', sans-serif;
+    }
+
+    body {
+        font-family: 'Segoe UI', sans-serif;
+        margin: 0;
+        padding: 0;
+        background: url('trip image.jpg') no-repeat center center fixed;
+        background-size: cover;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 100vh;
+        backdrop-filter: blur(3px);
+    }
+
+    .card {
+      background: #fff;
+      padding: 2rem;
+      border-radius: 16px;
+      box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+      width: 100%;
+      max-width: 500px;
+    }
+
+    h2 {
+      text-align: center;
+      color: #0072ff;
+      margin-bottom: 1.5rem;
+    }
+
+    input {
+      width: 100%;
+      padding: 12px;
+      margin-bottom: 1rem;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+    }
+
+    button {
+      width: 100%;
+      padding: 12px;
+      background-color: #0072ff;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: background 0.3s;
+      margin-bottom: 10px;
+    }
+
+    button:hover {
+      background-color: #005bd1;
+    }
+
+    .switch {
+      text-align: center;
+      color: #0072ff;
+      cursor: pointer;
+      margin-top: 10px;
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    .output {
+      white-space: pre-wrap;
+      background: #f0f8ff;
+      padding: 1rem;
+      border-radius: 8px;
+      margin-top: 1rem;
+    }
+
+    .loader {
+      border: 4px solid #f3f3f3;
+      border-top: 4px solid #0072ff;
+      border-radius: 50%;
+      width: 30px;
+      height: 30px;
+      animation: spin 1s linear infinite;
+      margin: 10px auto;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    .history {
+      margin-top: 1.5rem;
+    }
+
+    .trip-card {
+      background: #eef7ff;
+      padding: 1rem;
+      margin-bottom: 1rem;
+      border-radius: 10px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+    }
+
+    .trip-card pre {
+      background: #e9f4ff;
+      padding: 8px;
+      border-radius: 6px;
+      overflow-x: auto;
+      font-size: 0.95rem;
+    }
+
+    .back-btn {
+      margin-top: 1rem;
+      background: #ccc;
+    }
+
+    .nav-btn {
+      margin-top: 0.5rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h2 id="title">Register</h2>
+
+    <!-- Register Form -->
+    <div id="register">
+      <input type="text" id="reg-name" placeholder="Name" />
+      <input type="email" id="reg-email" placeholder="Email" />
+      <input type="password" id="reg-pass" placeholder="Password" />
+      <input type="password" id="reg-confirm" placeholder="Confirm Password" />
+      <button onclick="register()">Register</button>
+      <div class="switch" onclick="toggle('login')">Already have an account? Login</div>
+    </div>
+
+    <!-- Login Form -->
+    <div id="login" class="hidden">
+      <input type="email" id="login-email" placeholder="Email" />
+      <input type="password" id="login-pass" placeholder="Password" />
+      <button onclick="login()">Login</button>
+      <div class="switch" onclick="toggle('register')">Don't have an account? Register</div>
+    </div>
+
+    <!-- Planner Form -->
+    <div id="planner" class="hidden">
+      <input type="text" id="destination" placeholder="Destination" />
+      <input type="number" id="duration" placeholder="Duration (days)" />
+      <input type="text" id="purpose" placeholder="Purpose of Visit" />
+      <button onclick="generateItinerary()">Generate Itinerary</button>
+      <div class="loader hidden" id="loader"></div>
+      <div class="output" id="output"></div>
+      <button class="nav-btn" onclick="toggle('history')">View Trip History</button>
+    </div>
+
+    <!-- History Section -->
+    <div id="history" class="hidden">
+      <h3 style="text-align:center; color:#333; margin-bottom:1rem;">My Trips</h3>
+      <div id="trip-list"></div>
+      <button class="back-btn" onclick="toggle('planner')">← Back to Planner</button>
+    </div>
+  </div>
+
+  <script>
+    let token = localStorage.getItem("jwt") || "";
+
+    function toggle(form) {
+      document.getElementById("register").classList.toggle("hidden", form !== "register");
+      document.getElementById("login").classList.toggle("hidden", form !== "login");
+      document.getElementById("planner").classList.toggle("hidden", form !== "planner");
+      document.getElementById("history").classList.toggle("hidden", form !== "history");
+      document.getElementById("title").innerText = form === "register" ? "Register" : form === "login" ? "Login" : "Trip Planner";
+
+      if (form === "history") fetchHistory();
+    }
+
+    async function register() {
+      const name = document.getElementById("reg-name").value;
+      const email = document.getElementById("reg-email").value;
+      const password = document.getElementById("reg-pass").value;
+      const confirm = document.getElementById("reg-confirm").value;
+      if (password !== confirm) return alert("Passwords do not match");
+
+      const res = await fetch("http://localhost:5000/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, email, password, confirmPassword: confirm }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        alert("Registration successful");
+        toggle("login");
+      } else alert(data.error || "Registration failed");
+    }
+
+    async function login() {
+      const email = document.getElementById("login-email").value;
+      const password = document.getElementById("login-pass").value;
+
+      const res = await fetch("http://localhost:5000/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const data = await res.json();
+      if (res.ok && data.token) {
+        token = data.token;
+        localStorage.setItem("jwt", token);
+        toggle("planner");
+      } else alert(data.error || "Login failed");
+    }
+
+    async function generateItinerary() {
+      const destination = document.getElementById("destination").value;
+      const duration = document.getElementById("duration").value;
+      const purpose = document.getElementById("purpose").value;
+
+      document.getElementById("loader").classList.remove("hidden");
+      document.getElementById("output").innerText = "";
+
+      const res = await fetch("http://localhost:5000/api/itinerary", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ destination, duration, purpose }),
+      });
+
+      const data = await res.json();
+      document.getElementById("loader").classList.add("hidden");
+      document.getElementById("output").innerText = data.itinerary || data.error;
+    }
+
+    async function fetchHistory() {
+      const res = await fetch("http://localhost:5000/api/itinerary/ab", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      const data = await res.json();
+      const tripList = document.getElementById("trip-list");
+      tripList.innerHTML = "";
+
+      data.reverse().forEach((entry) => {
+        const div = document.createElement("div");
+        div.className = "trip-card";
+        div.innerHTML = `
+          <strong>${entry.destination}</strong> (${entry.duration} days)<br>
+          <em>${entry.purpose}</em>
+          <pre>${entry.itinerary}</pre>
+        `;
+        tripList.appendChild(div);
+      });
+    }
+  </script>
+</body>
+</html>
